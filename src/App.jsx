@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import Search from './Components/Search'
 import MovieList from './Components/MovieList';
 import Loader from './Components/Loader';
+import { useDebounce } from 'react-use';
+import { showTrendingMovies, updateSearchCount } from './appwrite';
 const BASE_URL = 'https://api.themoviedb.org/3'
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const API_OPTIONS = {
@@ -17,28 +19,32 @@ const App = () =>
     const [errorMassage, setErrorMassage] = useState('');
     const [moviesList, setMoviesList] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [trendingMovies, setTrendingMovies] = useState([]);
+    useDebounce(() => setDebouncedSearchTerm(searchTerm), 1000, [searchTerm])
 
-
-    const fetchDataMovie = async () =>
+    const fetchDataMovie = async (query = '') =>
     {
         setIsLoading(true)
         setErrorMassage('')
         try {
-            const END_POINT = `${BASE_URL}/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc`
+            const END_POINT = query ? `${BASE_URL}/search/movie?query=${encodeURI(query)}` : `${BASE_URL}/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc`
             const response = await fetch(END_POINT, API_OPTIONS)
             if (!response.ok) {
                 throw new Error('Failed to fetch data from the server')
             }
-                const data = await response.json()
-                // console.log(data)
+            const data = await response.json()
 
 
             if (data.response === 'false') {
                 setErrorMassage(data.error || ' No movies found')
                 setMoviesList([])
             }
-            else {
-                setMoviesList(data.results)
+
+            setMoviesList(data.results || [])
+            if (query && data.results.length > 0) {
+                await updateSearchCount(query, data.results[0])
+
             }
             setIsLoading(false)
 
@@ -46,14 +52,27 @@ const App = () =>
         } catch (error) {
             console.error('Error fetching data:', error)
             setErrorMassage('An error occurred while fetching data Movie. Please try again later.')
-        }finally{
+        } finally {
             setIsLoading(false)
         }
 
     }
+    const fetchTrendingMovies = async () => {
+        try {
+            const trendingMovies = await showTrendingMovies();
+            setTrendingMovies(trendingMovies);
+        } catch (error) {
+            console.error('Error fetching trending movies:', error);
+            // setErrorMassage('An error occurred while fetching trending movies. Please try again later.');
+        }
+    }
     useEffect(() =>
     {
-        fetchDataMovie()
+        fetchDataMovie(debouncedSearchTerm)
+    }, [debouncedSearchTerm])
+    useEffect(() =>
+    {
+        fetchTrendingMovies();
     }, [])
     return (
         < div className='pattern'>
@@ -64,14 +83,14 @@ const App = () =>
                     <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                 </header>
                 <section className='all-movies'>
-            {isLoading ? (
-                <Loader />
-            ) : errorMassage ? (
-                <p className='text-center text-2xl font-bold text-rose-100'>{errorMassage}</p>
-            ) : (
-                    <MovieList moviesList={moviesList} />
-                )}
-            </section>
+                    {isLoading ? (
+                        <Loader />
+                    ) : errorMassage ? (
+                        <p className='text-center text-2xl font-bold text-rose-100'>{errorMassage}</p>
+                    ) : (
+                        <MovieList moviesList={moviesList} trendingMovies={trendingMovies} />
+                    )}
+                </section>
             </div>
 
         </div>

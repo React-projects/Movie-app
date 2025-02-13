@@ -1,15 +1,32 @@
 import React from 'react'
+import MovieCard from './MovieCard'
 
-const MovieList = ({moviesList}) => {
+const MovieList = ({moviesList, trendingMovies}) => {
   return (
-    <ul>
-        <h1>Movie List</h1>
-        {moviesList.map((movie) => (
-            <p className='text-white' key={movie.id}>{movie.title}</p>
+    <>
+    {trendingMovies.length > 0 && (
+        <section className='trending'>
+            <h2>Trending Movies</h2>
+            <ul>
+                {trendingMovies.map((movie, index) => (
+                    <li key={movie.id}>
+                        <p>{index + 1}</p>
+                        <img src={movie.poster_url} alt={movie.title} />
+                    </li>
+                ))}
 
+            </ul>
+        </section>
+    )}
+        <h1>Movie List</h1>
+        <ul>
+        {moviesList.map((movie) => (
+        <MovieCard key={movie.id} movie={movie} />
 
         ))}
-    </ul>
+        </ul>
+
+    </>
   )
 }
 
